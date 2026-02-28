@@ -1,0 +1,56 @@
+export const API_BASE_URL = 'http://localhost:8080/api';  // use your backend's actual URL and port
+
+export const APPLICATION_STATUS = {
+  APPLIED: 'APPLIED',
+  SHORTLISTED: 'SHORTLISTED',
+  INTERVIEW_SCHEDULED: 'INTERVIEW_SCHEDULED',
+  REJECTED: 'REJECTED',
+  SELECTED: 'SELECTED'
+};
+
+export const INTERVIEW_MODE = {
+  VIDEO: 'VIDEO',
+  IN_PERSON: 'IN_PERSON',
+  PHONE: 'PHONE'
+};
+
+export const INTERVIEW_STATUS = {
+  SCHEDULED: 'SCHEDULED',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  RESCHEDULED: 'RESCHEDULED'
+};
+
+export const JOB_TYPE = {
+  FULL_TIME: 'FULL_TIME',
+  PART_TIME: 'PART_TIME',
+  CONTRACT: 'CONTRACT',
+  INTERNSHIP: 'INTERNSHIP'
+};
+
+export const JOB_STATUS = {
+  OPEN: 'OPEN',
+  CLOSED: 'CLOSED'
+};
+
+// Display labels
+export const STATUS_LABELS = {
+  [APPLICATION_STATUS.APPLIED]: 'Applied',
+  [APPLICATION_STATUS.SHORTLISTED]: 'Shortlisted',
+  [APPLICATION_STATUS.INTERVIEW_SCHEDULED]: 'Interview Scheduled',
+  [APPLICATION_STATUS.REJECTED]: 'Rejected',
+  [APPLICATION_STATUS.SELECTED]: 'Selected'
+};
+
+export const INTERVIEW_MODE_LABELS = {
+  [INTERVIEW_MODE.VIDEO]: 'Video Call',
+  [INTERVIEW_MODE.IN_PERSON]: 'In Person',
+  [INTERVIEW_MODE.PHONE]: 'Phone Call'
+};
+
+export const JOB_TYPE_LABELS = {
+  [JOB_TYPE.FULL_TIME]: 'Full Time',
+  [JOB_TYPE.PART_TIME]: 'Part Time',
+  [JOB_TYPE.CONTRACT]: 'Contract',
+  [JOB_TYPE.INTERNSHIP]: 'Internship'
+};
