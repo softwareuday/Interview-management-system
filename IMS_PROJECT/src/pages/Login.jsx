@@ -110,21 +110,7 @@ const Login = () => {
           <p>Don't have an account? <Link to="/register" className="auth-link">Sign up here</Link></p>
         </div>
 
-        <div className="demo-credentials">
-          <p className="demo-title">Demo Credentials:</p>
-          <div className="demo-grid">
-            <div className="demo-item">
-              <strong>Recruiter:</strong>
-              <p>recruiter@test.com</p>
-              <p>password123</p>
-            </div>
-            <div className="demo-item">
-              <strong>Candidate:</strong>
-              <p>candidate@test.com</p>
-              <p>password123</p>
-            </div>
-          </div>
-        </div>
+       
       </div>
     </div>
   );
