@@ -1,36 +1,4 @@
-//package com.ims.fullstack.controller;
-//
-//
-//import com.ims.fullstack.dto.*;
-//import com.ims.fullstack.dto.recruiter.RecruiterRegisterRequest;
-//import com.ims.fullstack.service.RecruiterAuthService;
-//import jakarta.validation.Valid;
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.http.ResponseEntity;
-//import org.springframework.web.bind.annotation.*;
-//
-//
-//@RestController
-//@RequestMapping("/api/auth/recruiter")
-//@RequiredArgsConstructor
-//@CrossOrigin(origins = "http://localhost:5173")
-//public class RecruiterAuthController {
-//
-//
-//    private final RecruiterAuthService recruiterAuthService;
-//
-//
-//    @PostMapping("/register")
-//    public ResponseEntity<MessageResponse> register(@Valid @RequestBody RecruiterRegisterRequest request) {
-//        return ResponseEntity.ok(recruiterAuthService.register(request));
-//    }
-//
-//
-//    @PostMapping("/login")
-//    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-//        return ResponseEntity.ok(recruiterAuthService.login(request));
-//    }
-//}
+
 
 package com.ims.fullstack.controller;
 

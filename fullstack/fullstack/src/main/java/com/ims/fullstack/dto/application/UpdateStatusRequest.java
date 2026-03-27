@@ -1,11 +1,4 @@
-//package com.ims.fullstack.dto.application;
-//
-//import lombok.Data;
-//
-//@Data
-//public class UpdateStatusRequest {
-//    private String status;
-//}
+
 package com.ims.fullstack.dto.application;
 
 import lombok.Data;
