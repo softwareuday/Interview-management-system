@@ -1,7 +1,3 @@
-
-
-
-
 package com.ims.fullstack.controller;
 
 import com.ims.fullstack.dto.application.ApplyRequest;
@@ -23,9 +19,11 @@ public class ApplicationController {
     private final ApplicationService applicationService;
 
     @PostMapping
-    @PreAuthorize("hasRole('CANDIDATE')")
-    public ResponseEntity<ApplicationResponse> apply(@RequestBody ApplyRequest request) {
-        return ResponseEntity.ok(applicationService.applyForJob(request, null));
+    public ResponseEntity<ApplicationResponse> apply(
+            @RequestPart("request") ApplyRequest request,
+            @RequestPart(value = "resume", required = false) MultipartFile resume) {
+        // No @PreAuthorize - open to both authenticated and guest users
+        return ResponseEntity.ok(applicationService.applyForJob(request, resume));
     }
 
     @GetMapping("/candidate")

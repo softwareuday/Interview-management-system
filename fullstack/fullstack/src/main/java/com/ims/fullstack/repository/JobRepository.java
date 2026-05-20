@@ -18,4 +18,5 @@ public interface JobRepository extends JpaRepository<Job, Long> {
 
     // Changed: status is now String
     long countByRecruiter_IdAndStatus(Long recruiterId, String status);
+
 }

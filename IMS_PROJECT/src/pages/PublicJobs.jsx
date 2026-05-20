@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { jobAPI, applicationAPI } from '../../services/api';
-import Sidebar from '../../components/common/Sidebar';
-import GuestApplyModal from '../../components/candidate/GuestApplyModal';
-import AtsScannerModal from '../../components/candidate/AtsScannerModal';
+import { useAuth } from '../context/AuthContext';
+import { jobAPI, applicationAPI } from '../services/api';
+import GuestApplyModal from '../components/candidate/GuestApplyModal';
+import AtsScannerModal from '../components/candidate/AtsScannerModal';
+import { Link } from 'react-router-dom';
 import { 
   Search, MapPin, DollarSign, Briefcase, Calendar, X, Send,
-  CheckCircle, AlertCircle, Clock, Building, Filter, TrendingUp
+  CheckCircle, AlertCircle, Clock, Building, Filter, TrendingUp, LogIn
 } from 'lucide-react';
-import { JOB_TYPE, JOB_TYPE_LABELS } from '../../constants';
-import '../../styles/BrowseJobs.css';
+import { JOB_TYPE, JOB_TYPE_LABELS } from '../constants';
+import '../styles/BrowseJobs.css';
 
-const BrowseJobs = () => {
+const PublicJobs = () => {
   const { isAuthenticated, user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +83,6 @@ const BrowseJobs = () => {
     setSelectedJob(job);
     if (!isAuthenticated || user?.role !== 'CANDIDATE') {
       alert('Please login as a candidate to use the ATS scanner. Create an account and upload your resume first.');
-      window.location.href = '/login';
       return;
     }
     setShowAtsModal(true);
@@ -105,19 +104,34 @@ const BrowseJobs = () => {
 
   if (loading) {
     return (
-      <div className="dashboard-layout">
-        <Sidebar role="CANDIDATE" />
-        <div className="dashboard-content">
-          <div className="loading-container"><div className="spinner-large"></div><p>Loading jobs...</p></div>
+      <div className="public-layout">
+        <div className="public-header">
+          <div className="container">
+            <div className="header-content">
+              <Link to="/" className="logo">InterviewPortal</Link>
+              <Link to="/login" className="btn btn-outline">Login / Register</Link>
+            </div>
+          </div>
         </div>
+        <div className="loading-container"><div className="spinner-large"></div><p>Loading jobs...</p></div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard-layout">
-      <Sidebar role="CANDIDATE" />
-      <div className="dashboard-content">
+    <div className="public-layout">
+      <div className="public-header">
+        <div className="container">
+          <div className="header-content">
+            <Link to="/" className="logo">InterviewPortal</Link>
+            <Link to="/login" className="btn btn-outline">
+              <LogIn size={18} /> Login / Register
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="container" style={{ paddingTop: '32px', paddingBottom: '64px' }}>
         <div className="page-header">
           <div>
             <h1>Browse Jobs</h1>
@@ -282,8 +296,14 @@ const BrowseJobs = () => {
           />
         )}
       </div>
+
+      <footer className="public-footer">
+        <div className="container">
+          <p>&copy; 2026 InterviewPortal. All rights reserved.</p>
+        </div>
+      </footer>
     </div>
   );
 };
 
-export default BrowseJobs;
+export default PublicJobs;

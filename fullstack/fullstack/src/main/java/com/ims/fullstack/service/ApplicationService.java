@@ -1,6 +1,3 @@
-
-
-
 package com.ims.fullstack.service;
 
 import com.ims.fullstack.dto.application.ApplyRequest;
@@ -10,7 +7,6 @@ import com.ims.fullstack.model.enums.ApplicationStatus;
 import com.ims.fullstack.repository.*;
 import com.ims.fullstack.security.AuthUtil;
 import com.ims.fullstack.security.AuthenticatedUser;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -30,21 +26,16 @@ public class ApplicationService {
     private final JobRepository jobRepository;
     private final FileStorageService fileStorageService;
 
+    @Transactional
     public ApplicationResponse applyForJob(ApplyRequest request, MultipartFile resume) {
-        // Get authenticated user from SecurityContext
+        // Get authenticated user
         var authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !(authentication.getPrincipal() instanceof AuthenticatedUser user)) {
-            throw new RuntimeException("Unauthorized");
-        }
+        boolean isAuthenticated = authentication != null && authentication.getPrincipal() instanceof AuthenticatedUser;
 
-        // Verify role
-        if (!user.getRole().equals("ROLE_CANDIDATE")) {
-            throw new RuntimeException("Only candidates can apply for jobs");
-        }
+        Candidate candidate = null;
+        String resumeUrl = null;
 
-        Candidate candidate = candidateRepository.findByEmail(user.getEmail())
-                .orElseThrow(() -> new RuntimeException("Candidate not found"));
-
+        // First get the job
         Job job = jobRepository.findById(request.getJobId())
                 .orElseThrow(() -> new RuntimeException("Job not found"));
 
@@ -52,18 +43,33 @@ public class ApplicationService {
             throw new RuntimeException("Cannot apply to a closed job");
         }
 
-        boolean hasProfileResume = candidate.getResumeUrl() != null;
-        boolean hasUploadedResume = resume != null && !resume.isEmpty();
-        if (!hasProfileResume && !hasUploadedResume) {
-            throw new RuntimeException("Resume is required to apply for this job");
+        if (isAuthenticated) {
+            AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+            if (!user.getRole().equals("ROLE_CANDIDATE")) {
+                throw new RuntimeException("Only candidates can apply for jobs");
+            }
+            candidate = candidateRepository.findByEmail(user.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Candidate not found"));
+
+            // Check if candidate already applied
+            applicationRepository.findByCandidateAndJob(candidate, job)
+                    .ifPresent(a -> { throw new RuntimeException("Already applied for this job"); });
+
+            // Use candidate's resume if available
+            resumeUrl = candidate.getResumeUrl();
+        } else {
+            // Guest application - must provide name and email
+            if (request.getGuestName() == null || request.getGuestName().trim().isEmpty() ||
+                    request.getGuestEmail() == null || request.getGuestEmail().trim().isEmpty()) {
+                throw new RuntimeException("Name and email are required for guest applications");
+            }
         }
 
-        applicationRepository.findByCandidateAndJob(candidate, job)
-                .ifPresent(a -> { throw new RuntimeException("Already applied for this job"); });
-
-        String resumeUrl = candidate.getResumeUrl();
-        if (hasUploadedResume) {
+        // If resume uploaded in this request, use it
+        if (resume != null && !resume.isEmpty()) {
             resumeUrl = fileStorageService.storeFile(resume);
+        } else if (candidate == null && resumeUrl == null) {
+            throw new RuntimeException("Resume is required to apply for this job");
         }
 
         Application application = Application.builder()
@@ -76,8 +82,13 @@ public class ApplicationService {
                 .appliedAt(LocalDateTime.now())
                 .build();
 
-        Application saved = applicationRepository.save(application);
+        // Set guest fields if candidate is null
+        if (candidate == null) {
+            application.setGuestName(request.getGuestName());
+            application.setGuestEmail(request.getGuestEmail());
+        }
 
+        Application saved = applicationRepository.save(application);
         return mapToResponse(saved);
     }
 
@@ -152,12 +163,23 @@ public class ApplicationService {
         applicationRepository.save(application);
     }
 
+    // ========== NEW METHODS FOR RECRUITER ATS ==========
+    public Application getApplicationById(Long id) {
+        return applicationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Application not found with id: " + id));
+    }
+
+    public void save(Application application) {
+        applicationRepository.save(application);
+    }
+    // ====================================================
+
     private ApplicationResponse mapToResponse(Application app) {
         return ApplicationResponse.builder()
                 .applicationId(app.getId())
-                .candidateId(app.getCandidate().getId())
-                .candidateName(app.getCandidate().getFullName())
-                .candidateEmail(app.getCandidate().getEmail())
+                .candidateId(app.getCandidate() != null ? app.getCandidate().getId() : null)
+                .candidateName(app.getCandidate() != null ? app.getCandidate().getFullName() : app.getGuestName())
+                .candidateEmail(app.getCandidate() != null ? app.getCandidate().getEmail() : app.getGuestEmail())
                 .jobId(app.getJob().getId())
                 .jobTitle(app.getJob().getTitle())
                 .resumeUrl(app.getResumeUrl())

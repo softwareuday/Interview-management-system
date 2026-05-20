@@ -25,6 +25,8 @@ public class Job {
     @Column(length = 5000)
     private String description;
 
+    ;
+
     private String department;
     private String location;
     private String salaryRange;

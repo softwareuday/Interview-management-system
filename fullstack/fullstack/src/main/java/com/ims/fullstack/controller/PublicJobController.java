@@ -7,13 +7,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/public/jobs")
 @RequiredArgsConstructor
 public class PublicJobController {
+
     private final PublicJobService publicJobService;
+      // Inject for manual testing
 
     @GetMapping
     public ResponseEntity<List<JobResponse>> browseJobs(
@@ -23,4 +26,6 @@ public class PublicJobController {
         Page<JobResponse> pageResult = publicJobService.getPublicJobs(page, size, request);
         return ResponseEntity.ok(pageResult.getContent());
     }
+
+
 }

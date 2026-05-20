@@ -49,14 +49,26 @@ export const jobAPI = {
   deleteJob: (id) => api.delete(`/recruiter/jobs/${id}`)
 };
 
-// ==================== APPLICATIONS ====================
+// ==================== APPLICATIONS (updated for guest) ====================
 export const applicationAPI = {
-  apply: (data) => api.post('/applications', data),
+  // Apply with optional resume file and guest fields
+  apply: (jobId, coverLetter, resumeFile, guestName, guestEmail) => {
+    const formData = new FormData();
+    const request = { jobId, coverLetter };
+    if (guestName) request.guestName = guestName;
+    if (guestEmail) request.guestEmail = guestEmail;
+    formData.append('request', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+    if (resumeFile) formData.append('resume', resumeFile);
+    return api.post('/applications', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  
   getCandidateApplications: () => api.get('/applications/candidate'),
-  getJobApplications: (jobId) => api.get(`/applications/job/${jobId}`),
   getAllRecruiterApplications: () => api.get('/applications/recruiter'),
+  getJobApplications: (jobId) => api.get(`/applications/job/${jobId}`),
   updateStatus: (id, status, notes = '') => 
-    api.patch(`/applications/${id}/status`, { status, notes })  // Now uses body, not params
+    api.patch(`/applications/${id}/status`, { status, notes })
 };
 
 // ==================== RESUME ====================
@@ -88,6 +100,11 @@ export const dashboardAPI = {
 export const profileAPI = {
   getCandidateProfile: () => api.get('/candidate/profile'),
   updateCandidateProfile: (data) => api.put('/candidate/profile', data)
+};
+
+// ==================== ATS SCANNER (requires auth) ====================
+export const atsAPI = {
+  scan: (jobId) => api.post('/ats/scan', { jobId })
 };
 
 export default api;

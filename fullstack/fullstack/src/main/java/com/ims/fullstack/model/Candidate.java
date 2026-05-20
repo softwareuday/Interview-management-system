@@ -1,4 +1,3 @@
-
 package com.ims.fullstack.model;
 
 import com.ims.fullstack.model.enums.UserRole;
@@ -28,11 +27,8 @@ public class Candidate {
     private String password;
 
     private String resumeUrl;
-
     private String phoneNumber;
-
     private String location;
-
     private String linkedinUrl;
 
     @Column(length = 1000)
@@ -42,9 +38,12 @@ public class Candidate {
     @Column(nullable = false)
     private UserRole role = UserRole.CANDIDATE;
 
-    // ⭐ NEW: createdAt field with @PrePersist
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    // New field: guest flag
+    @Builder.Default
+    private boolean isGuest = false;
 
     @PrePersist
     protected void onCreate() {

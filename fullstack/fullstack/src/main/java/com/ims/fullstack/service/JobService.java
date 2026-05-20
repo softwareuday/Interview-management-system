@@ -1,5 +1,3 @@
-
-
 package com.ims.fullstack.service;
 
 import com.ims.fullstack.dto.recruiter.JobRequest;
@@ -23,12 +21,12 @@ public class JobService {
     private final JobRepository jobRepository;
     private final RecruiterRepository recruiterRepository;
     private final ApplicationRepository applicationRepository;
+    private final RecruiterVerificationService verificationService;
 
     @Transactional
     public JobResponse createJob(JobRequest request) {
-        Long recruiterId = AuthUtil.getUserId();
-        var recruiter = recruiterRepository.findById(recruiterId)
-                .orElseThrow(() -> new RuntimeException("Recruiter not found"));
+        // Verify recruiter is verified
+        var recruiter = verificationService.getVerifiedRecruiter();
 
         Job job = Job.builder()
                 .title(request.getTitle())
@@ -40,7 +38,7 @@ public class JobService {
                 .requiredSkills(request.getRequiredSkills())
                 .jobType(request.getJobType())
                 .lastDateToApply(request.getLastDateToApply())
-                .status("OPEN")                     // ⭐ String literal
+                .status("OPEN")
                 .recruiter(recruiter)
                 .build();
 
@@ -50,6 +48,8 @@ public class JobService {
 
     public List<JobResponse> getMyJobs() {
         Long recruiterId = AuthUtil.getUserId();
+        // No need verification for viewing? But we'll still check they are authenticated
+        if (recruiterId == null) throw new RuntimeException("Unauthorized");
         return jobRepository.findByRecruiter_Id(recruiterId).stream()
                 .map(job -> mapToResponse(job, null))
                 .collect(Collectors.toList());
@@ -67,11 +67,13 @@ public class JobService {
 
     @Transactional
     public JobResponse updateJob(Long jobId, JobRequest request) {
-        Long recruiterId = AuthUtil.getUserId();
+        // Verify recruiter is verified
+        var recruiter = verificationService.getVerifiedRecruiter();
+
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
 
-        if (!job.getRecruiter().getId().equals(recruiterId)) {
+        if (!job.getRecruiter().getId().equals(recruiter.getId())) {
             throw new RuntimeException("Unauthorized");
         }
 
@@ -91,25 +93,27 @@ public class JobService {
 
     @Transactional
     public void closeJob(Long jobId) {
-        Long recruiterId = AuthUtil.getUserId();
+        var recruiter = verificationService.getVerifiedRecruiter();
+
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
 
-        if (!job.getRecruiter().getId().equals(recruiterId)) {
+        if (!job.getRecruiter().getId().equals(recruiter.getId())) {
             throw new RuntimeException("Unauthorized");
         }
 
-        job.setStatus("CLOSED");                    // ⭐ String literal
+        job.setStatus("CLOSED");
         jobRepository.save(job);
     }
 
     @Transactional
     public void deleteJob(Long jobId) {
-        Long recruiterId = AuthUtil.getUserId();
+        var recruiter = verificationService.getVerifiedRecruiter();
+
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
 
-        if (!job.getRecruiter().getId().equals(recruiterId)) {
+        if (!job.getRecruiter().getId().equals(recruiter.getId())) {
             throw new RuntimeException("Unauthorized");
         }
 
@@ -128,7 +132,7 @@ public class JobService {
                 .location(job.getLocation())
                 .salaryRange(job.getSalaryRange())
                 .experienceRequired(job.getExperienceRequired())
-                .status(job.getStatus())            // ⭐ now returns String directly
+                .status(job.getStatus())
                 .companyName(job.getRecruiter().getCompanyName())
                 .applicantsCount((int) applicantsCount)
                 .hasApplied(hasApplied)

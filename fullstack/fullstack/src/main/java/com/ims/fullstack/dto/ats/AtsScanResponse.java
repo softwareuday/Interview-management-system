@@ -1,4 +1,3 @@
-
 package com.ims.fullstack.dto.ats;
 
 import lombok.Builder;
@@ -11,4 +10,5 @@ public class AtsScanResponse {
     private int atsScore;
     private List<String> matchedKeywords;
     private List<String> missingKeywords;
+    private String recommendation;
 }

@@ -1,4 +1,3 @@
-
 package com.ims.fullstack.model;
 
 import lombok.Builder;
@@ -11,4 +10,5 @@ public class AtsScoreResult {
     private int score;
     private List<String> matched;
     private List<String> missing;
+    private String recommendations;
 }

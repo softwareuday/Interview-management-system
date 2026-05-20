@@ -1,35 +1,158 @@
 import { useState, useEffect } from 'react';
-import { applicationAPI } from '../../services/api';
+import { useSearchParams, Link } from 'react-router-dom';
+import { applicationAPI, jobAPI, interviewAPI, atsAPI } from '../../services/api';
 import Sidebar from '../../components/common/Sidebar';
-import { FileText, Search, TrendingUp, Calendar, Briefcase, CheckCircle, XCircle, Clock, Star, AlertCircle, Eye } from 'lucide-react';
-import { APPLICATION_STATUS, STATUS_LABELS } from '../../constants';
-import '../../styles/Applications.css';
+import {
+  Users, Search, Filter, FileText, Mail, Calendar, TrendingUp,
+  CheckCircle, XCircle, Clock, Star, X, AlertCircle, Send, Eye
+} from 'lucide-react';
+import { APPLICATION_STATUS, STATUS_LABELS, INTERVIEW_MODE } from '../../constants';
 import { API_BASE_URL } from '../../constants';
+import '../../styles/Applicants.css';
 
-const Applications = () => {
+const Applicants = () => {
+  const [searchParams] = useSearchParams();
+  const initialJobId = searchParams.get('jobId');
+
   const [applications, setApplications] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [selectedJob, setSelectedJob] = useState(initialJobId || 'ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [selectedApplication, setSelectedApplication] = useState(null);
+  const [showStatusModal, setShowStatusModal] = useState(false);
+  const [showInterviewModal, setShowInterviewModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [newStatus, setNewStatus] = useState('');
+  const [statusNotes, setStatusNotes] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [schedulingInterview, setSchedulingInterview] = useState(false);
 
-  useEffect(() => { fetchApplications(); }, []);
+  const [interviewData, setInterviewData] = useState({
+    interviewDate: '',
+    interviewTime: '',
+    mode: INTERVIEW_MODE.VIDEO,
+    meetingLink: '',
+    remarks: ''
+  });
 
-  const fetchApplications = async () => {
+  useEffect(() => { fetchData(); }, []);
+
+  const fetchData = async () => {
     try {
-      const response = await applicationAPI.getCandidateApplications();
-      setApplications(response.data);
+      const [appsResponse, jobsResponse] = await Promise.all([
+        applicationAPI.getAllRecruiterApplications(),
+        jobAPI.getRecruiterJobs()
+      ]);
+      setApplications(appsResponse.data);
+      setJobs(jobsResponse.data);
     } catch (err) {
-      console.error('Error fetching applications:', err);
-      setError('Failed to load applications');
+      console.error('Error fetching data:', err);
+      setError('Failed to load applicants');
     } finally { setLoading(false); }
   };
 
+  const handleStatusUpdate = async () => {
+    if (!newStatus || !selectedApplication) return;
+    setUpdatingStatus(true);
+    try {
+      await applicationAPI.updateStatus(
+        selectedApplication.applicationId,
+        newStatus,
+        statusNotes
+      );
+      setApplications(applications.map(app =>
+        app.applicationId === selectedApplication.applicationId
+          ? { ...app, status: newStatus }
+          : app
+      ));
+      setShowStatusModal(false);
+      setSelectedApplication(null);
+      setNewStatus('');
+      setStatusNotes('');
+    } catch (err) {
+      alert('Failed to update status: ' + (err.response?.data?.message || 'Please try again'));
+    } finally { setUpdatingStatus(false); }
+  };
+
+  const handleScheduleInterview = async () => {
+    if (!interviewData.interviewDate || !interviewData.interviewTime) {
+      alert('Please fill in interview date and time');
+      return;
+    }
+    setSchedulingInterview(true);
+    try {
+      await interviewAPI.scheduleInterview({
+        candidateId: selectedApplication.candidateId,
+        jobId: selectedApplication.jobId,
+        position: selectedApplication.jobTitle,
+        interviewDate: interviewData.interviewDate,
+        interviewTime: interviewData.interviewTime,
+        mode: interviewData.mode,
+        meetingLink: interviewData.meetingLink,
+        remarks: interviewData.remarks
+      });
+      setApplications(applications.map(app =>
+        app.applicationId === selectedApplication.applicationId
+          ? { ...app, status: APPLICATION_STATUS.INTERVIEW_SCHEDULED }
+          : app
+      ));
+      setShowInterviewModal(false);
+      setSelectedApplication(null);
+      setInterviewData({
+        interviewDate: '', interviewTime: '', mode: INTERVIEW_MODE.VIDEO,
+        meetingLink: '', remarks: ''
+      });
+    } catch (err) {
+      alert('Failed to schedule interview: ' + (err.response?.data?.message || 'Please try again'));
+    } finally { setSchedulingInterview(false); }
+  };
+
+  const handleScan = async (app) => {
+    setSelectedApplication(app);
+    setScanning(true);
+    setShowScanModal(true);
+    try {
+      const response = await atsAPI.scanApplication(app.applicationId);
+      setScanResult(response.data);
+      // Update the atsScore in the applications list
+      setApplications(applications.map(a =>
+        a.applicationId === app.applicationId
+          ? { ...a, atsScore: response.data.atsScore }
+          : a
+      ));
+    } catch (err) {
+      console.error('Scan failed', err);
+      alert('Failed to scan: ' + (err.response?.data?.message || 'Unknown error'));
+      setShowScanModal(false);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const openStatusModal = (app) => {
+    setSelectedApplication(app);
+    setNewStatus(app.status);
+    setShowStatusModal(true);
+  };
+
+  const openInterviewModal = (app) => {
+    setSelectedApplication(app);
+    setShowInterviewModal(true);
+  };
+
   const filteredApplications = applications.filter(app => {
-    const matchesSearch = app.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (app.companyName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+    const matchesJob = selectedJob === 'ALL' || app.jobId === parseInt(selectedJob);
+    const matchesSearch = (app.candidateName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (app.candidateEmail?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (app.jobTitle?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || app.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesJob && matchesSearch && matchesStatus;
   });
 
   const getStatusColor = (status) => {
@@ -46,106 +169,301 @@ const Applications = () => {
   if (loading) {
     return (
       <div className="dashboard-layout">
-        <Sidebar role="CANDIDATE" />
-        <div className="dashboard-content"><div className="loading-container"><div className="spinner-large"></div><p>Loading applications...</p></div></div>
+        <Sidebar role="RECRUITER" />
+        <div className="dashboard-content"><div className="loading-container"><div className="spinner-large"></div><p>Loading applicants...</p></div></div>
       </div>
     );
   }
 
   return (
     <div className="dashboard-layout">
-      <Sidebar role="CANDIDATE" />
+      <Sidebar role="RECRUITER" />
       <div className="dashboard-content">
         <div className="page-header">
-          <div><h1>My Applications</h1><p>Track your job application status</p></div>
-          <div className="header-stats">
-            <div className="stat-chip"><FileText size={18} /><span>{applications.length} Total Applications</span></div>
-            <div className="stat-chip"><Clock size={18} /><span>{applications.filter(a => a.status === APPLICATION_STATUS.APPLIED).length} In Review</span></div>
-          </div>
+          <div><h1>Applicants</h1><p>Review and manage candidate applications</p></div>
         </div>
         {error && <div className="error-alert"><AlertCircle size={20} />{error}</div>}
-        <div className="applications-filters">
+
+        <div className="applicants-filters">
           <div className="search-box">
             <Search size={20} />
-            <input type="text" placeholder="Search by job title or company..." value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
+            <input type="text" placeholder="Search by candidate name, email, or job title..."
+              value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
           </div>
-          <div className="status-filter-buttons">
-            <button className={`status-filter-btn ${statusFilter === 'ALL' ? 'active' : ''}`}
-              onClick={() => setStatusFilter('ALL')}>All ({applications.length})</button>
-            {Object.keys(APPLICATION_STATUS).map(status => (
-              <button key={status} className={`status-filter-btn ${statusFilter === status ? 'active' : ''}`}
-                onClick={() => setStatusFilter(status)}>
-                {STATUS_LABELS[status]} ({applications.filter(a => a.status === status).length})
-              </button>
-            ))}
+          <div className="filter-row">
+            <div className="filter-group">
+              <Filter size={16} />
+              <select value={selectedJob} onChange={(e) => setSelectedJob(e.target.value)} className="filter-select">
+                <option value="ALL">All Jobs ({applications.length})</option>
+                {jobs.map(job => (
+                  <option key={job.id} value={job.id}>
+                    {job.title} ({applications.filter(a => a.jobId === job.id).length})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="status-filter-buttons">
+              <button className={`status-filter-btn ${statusFilter === 'ALL' ? 'active' : ''}`}
+                onClick={() => setStatusFilter('ALL')}>All</button>
+              {Object.keys(APPLICATION_STATUS).map(status => (
+                <button key={status} className={`status-filter-btn ${statusFilter === status ? 'active' : ''}`}
+                  onClick={() => setStatusFilter(status)}>{STATUS_LABELS[status]}</button>
+              ))}
+            </div>
           </div>
         </div>
+
         {filteredApplications.length === 0 ? (
           <div className="empty-state">
-            <FileText size={64} strokeWidth={1.5} />
-            <h3>No applications found</h3>
-            <p>{searchTerm || statusFilter !== 'ALL' ? 'Try adjusting your filters' : 'You haven\'t applied to any jobs yet. Start browsing!'}</p>
+            <Users size={64} strokeWidth={1.5} />
+            <h3>No applicants found</h3>
+            <p>{searchTerm || statusFilter !== 'ALL' || selectedJob !== 'ALL'
+              ? 'Try adjusting your filters'
+              : 'Applications will appear here once candidates apply'}</p>
           </div>
         ) : (
-          <div className="applications-list">
-            {filteredApplications.map(app => (
-              <div key={app.applicationId} className="application-card">
-                <div className="application-header">
-                  <div className="job-info">
-                    <div className="company-icon"><Briefcase size={24} /></div>
-                    <div><h3>{app.jobTitle}</h3><p className="company-name">{app.companyName || 'Company'}</p></div>
-                  </div>
-                  <span className={`status-badge ${getStatusColor(app.status)}`}>
-                    {app.status === APPLICATION_STATUS.APPLIED && <FileText size={16} />}
-                    {app.status === APPLICATION_STATUS.SHORTLISTED && <Star size={16} />}
-                    {app.status === APPLICATION_STATUS.INTERVIEW_SCHEDULED && <Calendar size={16} />}
-                    {app.status === APPLICATION_STATUS.SELECTED && <CheckCircle size={16} />}
-                    {app.status === APPLICATION_STATUS.REJECTED && <XCircle size={16} />}
-                    {STATUS_LABELS[app.status]}
-                  </span>
-                </div>
-                <div className="application-body">
-                  {app.atsScore !== null && (
-                    <div className="ats-score-section">
-                      <div className="ats-label"><TrendingUp size={18} /><span>ATS Match Score</span></div>
-                      <div className="ats-progress">
-                        <div className="progress-bar"><div className={`progress-fill ${app.atsScore >= 70 ? 'high' : app.atsScore >= 50 ? 'medium' : 'low'}`} style={{ width: `${app.atsScore}%` }}></div></div>
-                        <span className="ats-value">{app.atsScore}%</span>
-                      </div>
-                      <p className="ats-hint">
-                        {app.atsScore >= 70 ? 'Excellent match!' : app.atsScore >= 50 ? 'Good match.' : 'Update your resume to better match the job requirements.'}
-                      </p>
-                    </div>
-                  )}
-                  <div className="application-timeline">
-                    {['APPLIED', 'SHORTLISTED', 'INTERVIEW_SCHEDULED', 'SELECTED'].map((step, idx) => (
-                      <div key={step} className={`timeline-item ${['APPLIED', 'SHORTLISTED', 'INTERVIEW_SCHEDULED', 'SELECTED'].indexOf(app.status) >= idx ? 'completed' : ''}`}>
-                        <div className="timeline-dot"></div>
-                        <div className="timeline-content">
-                          <span className="timeline-label">{STATUS_LABELS[step]}</span>
-                          <span className="timeline-date">
-                            {step === 'APPLIED' ? new Date(app.appliedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) :
-                             step === app.status ? 'Current' : 'Pending'}
-                          </span>
+          <div className="applicants-table-container">
+            <table className="applicants-table">
+              <thead>
+                <tr>
+                  <th>Candidate</th>
+                  <th>Job Title</th>
+                  <th>Applied Date</th>
+                  <th>ATS Score</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredApplications.map(app => (
+                  <tr key={app.applicationId}>
+                    <td>
+                      <div className="candidate-info">
+                        <div className="candidate-avatar">
+                          {app.candidateName?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                        <div>
+                          <div className="candidate-name">{app.candidateName}</div>
+                          <div className="candidate-email">
+                            <Mail size={14} /> {app.candidateEmail}
+                          </div>
                         </div>
                       </div>
-                    ))}
+                    </td>
+                    <td><div className="job-title-cell">{app.jobTitle}</div></td>
+                    <td><div className="date-cell">{new Date(app.appliedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div></td>
+                    <td>
+                      <div className="ats-score-cell">
+                        {app.atsScore != null ? (
+                          <div className={`ats-badge ${app.atsScore >= 70 ? 'high' : app.atsScore >= 50 ? 'medium' : 'low'}`}>
+                            <TrendingUp size={14} /> {app.atsScore}%
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => handleScan(app)} 
+                            className="btn-scan-sm"
+                            title="Scan with ATS"
+                          >
+                            Scan
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${getStatusColor(app.status)}`}>
+                        {app.status === APPLICATION_STATUS.APPLIED && <FileText size={14} />}
+                        {app.status === APPLICATION_STATUS.SHORTLISTED && <Star size={14} />}
+                        {app.status === APPLICATION_STATUS.INTERVIEW_SCHEDULED && <Calendar size={14} />}
+                        {app.status === APPLICATION_STATUS.SELECTED && <CheckCircle size={14} />}
+                        {app.status === APPLICATION_STATUS.REJECTED && <XCircle size={14} />}
+                        {STATUS_LABELS[app.status]}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <button onClick={() => openStatusModal(app)} className="btn-action primary">Update Status</button>
+                        <button onClick={() => openInterviewModal(app)} className="btn-action secondary" title="Schedule Interview">
+                          <Calendar size={16} />
+                        </button>
+                        {app.resumeUrl && (
+                          <a href={`${API_BASE_URL}${app.resumeUrl}`} target="_blank" rel="noopener noreferrer"
+                            className="btn-action secondary" title="View Resume">
+                            <FileText size={16} />
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Status Update Modal */}
+        {showStatusModal && (
+          <div className="modal-overlay" onClick={() => setShowStatusModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Update Application Status</h3>
+                <button onClick={() => setShowStatusModal(false)} className="modal-close"><X size={24} /></button>
+              </div>
+              <div className="modal-body">
+                <div className="candidate-summary">
+                  <div className="candidate-avatar large">
+                    {selectedApplication?.candidateName?.charAt(0).toUpperCase()}
                   </div>
-                  {app.statusNotes && (
-                    <div className="status-notes"><strong>Note from recruiter:</strong><p>{app.statusNotes}</p></div>
-                  )}
+                  <div>
+                    <strong>{selectedApplication?.candidateName}</strong>
+                    <p>Applied for {selectedApplication?.jobTitle}</p>
+                  </div>
                 </div>
-                <div className="application-footer">
-                  <div className="footer-info"><Calendar size={14} /><span>Applied {new Date(app.appliedAt).toLocaleDateString()}</span></div>
-                  {app.resumeUrl && (
-                    <a href={`${API_BASE_URL}${app.resumeUrl}`} target="_blank" rel="noopener noreferrer" className="btn-view-resume">
-                      <Eye size={16} /> View Resume
-                    </a>
-                  )}
+                <div className="form-group">
+                  <label className="label">New Status</label>
+                  <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="input select-input">
+                    {Object.keys(APPLICATION_STATUS).map(status => (
+                      <option key={status} value={status}>{STATUS_LABELS[status]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="label">Notes (Optional)</label>
+                  <textarea value={statusNotes} onChange={(e) => setStatusNotes(e.target.value)}
+                    className="input" rows="4" placeholder="Add any notes for the candidate..." />
                 </div>
               </div>
-            ))}
+              <div className="modal-footer">
+                <button onClick={() => setShowStatusModal(false)} className="btn btn-secondary" disabled={updatingStatus}>Cancel</button>
+                <button onClick={handleStatusUpdate} className="btn btn-primary" disabled={updatingStatus}>
+                  {updatingStatus ? <><div className="spinner"></div> Updating...</> : <><Send size={18} /> Update Status</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Schedule Interview Modal */}
+        {showInterviewModal && (
+          <div className="modal-overlay" onClick={() => setShowInterviewModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Schedule Interview</h3>
+                <button onClick={() => setShowInterviewModal(false)} className="modal-close"><X size={24} /></button>
+              </div>
+              <div className="modal-body">
+                <div className="candidate-summary">
+                  <div className="candidate-avatar large">
+                    {selectedApplication?.candidateName?.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <strong>{selectedApplication?.candidateName}</strong>
+                    <p>{selectedApplication?.jobTitle}</p>
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="label">Interview Date</label>
+                    <input type="date" value={interviewData.interviewDate}
+                      onChange={(e) => setInterviewData({...interviewData, interviewDate: e.target.value})}
+                      className="input" min={new Date().toISOString().split('T')[0]} />
+                  </div>
+                  <div className="form-group">
+                    <label className="label">Interview Time</label>
+                    <input type="time" value={interviewData.interviewTime}
+                      onChange={(e) => setInterviewData({...interviewData, interviewTime: e.target.value})}
+                      className="input" />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="label">Interview Mode</label>
+                  <select value={interviewData.mode}
+                    onChange={(e) => setInterviewData({...interviewData, mode: e.target.value})}
+                    className="input select-input">
+                    <option value={INTERVIEW_MODE.VIDEO}>Video Call</option>
+                    <option value={INTERVIEW_MODE.IN_PERSON}>In Person</option>
+                    <option value={INTERVIEW_MODE.PHONE}>Phone Call</option>
+                  </select>
+                </div>
+                {interviewData.mode === INTERVIEW_MODE.VIDEO && (
+                  <div className="form-group">
+                    <label className="label">Meeting Link</label>
+                    <input type="url" value={interviewData.meetingLink}
+                      onChange={(e) => setInterviewData({...interviewData, meetingLink: e.target.value})}
+                      className="input" placeholder="https://meet.google.com/..." />
+                  </div>
+                )}
+                <div className="form-group">
+                  <label className="label">Remarks (Optional)</label>
+                  <textarea value={interviewData.remarks}
+                    onChange={(e) => setInterviewData({...interviewData, remarks: e.target.value})}
+                    className="input" rows="3" placeholder="Any special instructions or notes..." />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setShowInterviewModal(false)} className="btn btn-secondary" disabled={schedulingInterview}>Cancel</button>
+                <button onClick={handleScheduleInterview} className="btn btn-primary" disabled={schedulingInterview}>
+                  {schedulingInterview ? <><div className="spinner"></div> Scheduling...</> : <><Calendar size={18} /> Schedule Interview</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ATS Scan Result Modal */}
+        {showScanModal && (
+          <div className="modal-overlay" onClick={() => setShowScanModal(false)}>
+            <div className="modal-content large" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>ATS Scan Result</h3>
+                <button onClick={() => setShowScanModal(false)} className="modal-close"><X size={24} /></button>
+              </div>
+              <div className="modal-body">
+                {scanning ? (
+                  <div className="loading-container">
+                    <div className="spinner-large"></div>
+                    <p>Analyzing resume against job requirements...</p>
+                  </div>
+                ) : scanResult && (
+                  <>
+                    <div className="ats-score-section">
+                      <div className="score-circle">
+                        <div className={`score-value ${scanResult.atsScore >= 70 ? 'high' : scanResult.atsScore >= 50 ? 'medium' : 'low'}`}>
+                          {scanResult.atsScore}%
+                        </div>
+                        <div className="score-label">Match Score</div>
+                      </div>
+                      <p className="score-message">{scanResult.recommendation}</p>
+                    </div>
+
+                    {scanResult.matchedKeywords && scanResult.matchedKeywords.length > 0 && (
+                      <div className="matched-section">
+                        <h4><CheckCircle size={18} /> Matched Skills</h4>
+                        <div className="skills-list">
+                          {scanResult.matchedKeywords.map((skill, i) => (
+                            <span key={i} className="skill-badge matched">{skill}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {scanResult.missingKeywords && scanResult.missingKeywords.length > 0 && (
+                      <div className="missing-section">
+                        <h4><AlertCircle size={18} /> Missing Skills</h4>
+                        <div className="skills-list">
+                          {scanResult.missingKeywords.map((skill, i) => (
+                            <span key={i} className="skill-badge missing">{skill}</span>
+                          ))}
+                        </div>
+                        <p className="tip">These skills are required by the job but not found in the candidate's resume.</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button onClick={() => setShowScanModal(false)} className="btn btn-primary">Close</button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -153,4 +471,4 @@ const Applications = () => {
   );
 };
 
-export default Applications;
+export default Applicants;

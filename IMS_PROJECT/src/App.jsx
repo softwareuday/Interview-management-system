@@ -6,6 +6,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import PublicJobs from './pages/PublicJobs';  // NEW: public job listing page
 
 // Recruiter Pages
 import RecruiterDashboard from './pages/recruiter/RecruiterDashboard';
@@ -15,7 +16,7 @@ import EditJob from './pages/recruiter/EditJob';
 import Applicants from './pages/recruiter/Applicants';
 import Interviews from './pages/recruiter/Interviews';
 
-// Candidate Pages
+// Candidate Pages (protected)
 import CandidateDashboard from './pages/candidate/CandidateDashboard';
 import BrowseJobs from './pages/candidate/BrowseJobs';
 import Applications from './pages/candidate/Applications';
@@ -39,7 +40,10 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Recruiter Routes */}
+          {/* PUBLIC ROUTE - no login required */}
+          <Route path="/jobs" element={<PublicJobs />} />
+
+          {/* Recruiter Routes (protected) */}
           <Route path="/recruiter/dashboard" element={<ProtectedRoute allowedRoles={['RECRUITER']}><RecruiterDashboard /></ProtectedRoute>} />
           <Route path="/recruiter/jobs" element={<ProtectedRoute allowedRoles={['RECRUITER']}><Jobs /></ProtectedRoute>} />
           <Route path="/recruiter/jobs/create" element={<ProtectedRoute allowedRoles={['RECRUITER']}><CreateJob /></ProtectedRoute>} />
@@ -47,7 +51,7 @@ function App() {
           <Route path="/recruiter/applicants" element={<ProtectedRoute allowedRoles={['RECRUITER']}><Applicants /></ProtectedRoute>} />
           <Route path="/recruiter/interviews" element={<ProtectedRoute allowedRoles={['RECRUITER']}><Interviews /></ProtectedRoute>} />
 
-          {/* Candidate Routes */}
+          {/* Candidate Routes (protected) */}
           <Route path="/candidate/dashboard" element={<ProtectedRoute allowedRoles={['CANDIDATE']}><CandidateDashboard /></ProtectedRoute>} />
           <Route path="/candidate/jobs" element={<ProtectedRoute allowedRoles={['CANDIDATE']}><BrowseJobs /></ProtectedRoute>} />
           <Route path="/candidate/applications" element={<ProtectedRoute allowedRoles={['CANDIDATE']}><Applications /></ProtectedRoute>} />
