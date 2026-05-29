@@ -1,5 +1,4 @@
-export const API_BASE_URL = 'http://localhost:8080/api'
-//'https://interview-management-system-75aa.onrender.com/api'; use your backend's actual URL and port
+export const API_BASE_URL = 'https://interview-management-system-75aa.onrender.com/api'; 
 
 export const APPLICATION_STATUS = {
   APPLIED: 'APPLIED',
