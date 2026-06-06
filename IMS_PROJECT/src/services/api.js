@@ -6,52 +6,45 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 });
 
-// Request interceptor
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-// Response interceptor
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
-    return Promise.reject(error);
+    return Promise.reject(err);
   }
 );
 
-// ==================== AUTH ====================
+// Auth
 export const authAPI = {
-  recruiterRegister: (data) => api.post('/auth/recruiter/register', data),
-  recruiterLogin: (data) => api.post('/auth/recruiter/login', data),
+  candidateLogin: (data) => api.post('/auth/candidate/login', data),
   candidateRegister: (data) => api.post('/auth/candidate/register', data),
-  candidateLogin: (data) => api.post('/auth/candidate/login', data)
+  recruiterLogin: (data) => api.post('/auth/recruiter/login', data),
+  recruiterRegister: (data) => api.post('/auth/recruiter/register', data)
 };
 
-// ==================== JOBS ====================
+// Jobs
 export const jobAPI = {
   browseJobs: (params) => api.get('/public/jobs', { params }),
-  getPublicJobById: (id) => api.get(`/public/jobs/${id}`),
-  createJob: (data) => api.post('/recruiter/jobs', data),
   getRecruiterJobs: () => api.get('/recruiter/jobs'),
+  createJob: (data) => api.post('/recruiter/jobs', data),
   getJobById: (id) => api.get(`/recruiter/jobs/${id}`),
   updateJob: (id, data) => api.put(`/recruiter/jobs/${id}`, data),
   closeJob: (id) => api.patch(`/recruiter/jobs/${id}/close`),
   deleteJob: (id) => api.delete(`/recruiter/jobs/${id}`)
 };
 
-// ==================== APPLICATIONS (updated for guest) ====================
+// Applications
 export const applicationAPI = {
-  // Apply with optional resume file and guest fields
   apply: (jobId, coverLetter, resumeFile, guestName, guestEmail) => {
     const formData = new FormData();
     const request = { jobId, coverLetter };
@@ -63,15 +56,13 @@ export const applicationAPI = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
-  
   getCandidateApplications: () => api.get('/applications/candidate'),
   getAllRecruiterApplications: () => api.get('/applications/recruiter'),
   getJobApplications: (jobId) => api.get(`/applications/job/${jobId}`),
-  updateStatus: (id, status, notes = '') => 
-    api.patch(`/applications/${id}/status`, { status, notes })
+  updateStatus: (id, status, notes) => api.patch(`/applications/${id}/status`, { status, notes })
 };
 
-// ==================== RESUME ====================
+// Resume
 export const resumeAPI = {
   upload: (file) => {
     const formData = new FormData();
@@ -82,7 +73,7 @@ export const resumeAPI = {
   }
 };
 
-// ==================== INTERVIEWS ====================
+// Interviews
 export const interviewAPI = {
   scheduleInterview: (data) => api.post('/interviews', data),
   getRecruiterInterviews: () => api.get('/interviews/recruiter'),
@@ -90,21 +81,22 @@ export const interviewAPI = {
   cancelInterview: (id) => api.patch(`/interviews/${id}/cancel`)
 };
 
-// ==================== DASHBOARD ====================
+// Dashboard stats
 export const dashboardAPI = {
-  getRecruiterStats: () => api.get('/recruiter/dashboard/stats'),
-  getCandidateStats: () => api.get('/candidate/dashboard/stats')
+  getCandidateStats: () => api.get('/candidate/dashboard/stats'),
+  getRecruiterStats: () => api.get('/recruiter/dashboard/stats')
 };
 
-// ==================== PROFILE ====================
+// Profile
 export const profileAPI = {
   getCandidateProfile: () => api.get('/candidate/profile'),
   updateCandidateProfile: (data) => api.put('/candidate/profile', data)
 };
 
-// ==================== ATS SCANNER (requires auth) ====================
+// ATS
 export const atsAPI = {
-  scan: (jobId) => api.post('/ats/scan', { jobId })
+  scan: (jobId) => api.post('/ats/scan', { jobId }),
+  scanApplication: (applicationId) => api.post(`/ats/scan-application/${applicationId}`)
 };
 
 export default api;

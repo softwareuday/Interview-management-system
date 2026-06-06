@@ -1,52 +1,33 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authAPI } from '../services/api';
-import { LogIn, User, Briefcase, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import '../styles/Auth.css';
+import ThemeToggle from '../components/common/ThemeToggle';
+import { LogIn, User, Briefcase, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { login } = useAuth();
-
   const [role, setRole] = useState('CANDIDATE');
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (location.state?.message) {
-      setSuccessMessage(location.state.message);
-      setTimeout(() => setSuccessMessage(''), 5000);
-    }
-  }, [location]);
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError('');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
-      return;
-    }
     setLoading(true);
     try {
-      const response = role === 'RECRUITER'
-        ? await authAPI.recruiterLogin(formData)
-        : await authAPI.candidateLogin(formData);
-      const { token, id, email, fullName, role: userRole } = response.data;
+      const res = role === 'RECRUITER'
+        ? await authAPI.recruiterLogin(form)
+        : await authAPI.candidateLogin(form);
+      const { token, id, email, fullName, role: userRole } = res.data;
       login(token, { id, email, fullName, role: userRole });
       navigate(userRole === 'RECRUITER' ? '/recruiter/dashboard' : '/candidate/dashboard');
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.response?.data?.message || 'Invalid email or password. Please try again.');
+      setError(err.response?.data?.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -54,63 +35,35 @@ const Login = () => {
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
+      <div className="auth-card glass">
         <div className="auth-header">
-          <div className="auth-logo"><Briefcase size={32} /></div>
+          <Briefcase size={32} />
           <h1>Welcome Back</h1>
-          <p>Sign in to continue to your account</p>
+          <p>Sign in to continue</p>
+          <div className="theme-toggle-placeholder"><ThemeToggle /></div>
         </div>
-
-        {successMessage && (
-          <div className="success-alert"><AlertCircle size={20} />{successMessage}</div>
-        )}
-
         <div className="role-toggle">
-          <button type="button" className={`role-btn ${role === 'CANDIDATE' ? 'active' : ''}`}
-            onClick={() => { setRole('CANDIDATE'); setError(''); }}>
-            <User size={20} /> Candidate
-          </button>
-          <button type="button" className={`role-btn ${role === 'RECRUITER' ? 'active' : ''}`}
-            onClick={() => { setRole('RECRUITER'); setError(''); }}>
-            <Briefcase size={20} /> Recruiter
-          </button>
+          <button className={`role-btn ${role === 'CANDIDATE' ? 'active' : ''}`} onClick={() => setRole('CANDIDATE')}><User size={20} /> Candidate</button>
+          <button className={`role-btn ${role === 'RECRUITER' ? 'active' : ''}`} onClick={() => setRole('RECRUITER')}><Briefcase size={20} /> Recruiter</button>
         </div>
-
         <form onSubmit={handleSubmit} className="auth-form">
           {error && <div className="error-alert"><AlertCircle size={20} />{error}</div>}
-
           <div className="form-group">
-            <label htmlFor="email">Email Address</label>
-            <input id="email" type="email" name="email" className="input"
-              placeholder="Enter your email" value={formData.email}
-              onChange={handleChange} autoComplete="email" disabled={loading} />
+            <label>Email</label>
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
           </div>
-
           <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <div className="password-input-wrapper">
-              <input id="password" type={showPassword ? 'text' : 'password'} name="password"
-                className="input password-input" placeholder="Enter your password"
-                value={formData.password} onChange={handleChange}
-                autoComplete="current-password" disabled={loading} />
-              <button type="button" className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)} disabled={loading}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}>
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
+            <label>Password</label>
+            <div className="password-wrapper">
+              <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+              <button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={20} /> : <Eye size={20} />}</button>
             </div>
           </div>
-
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? <><div className="spinner"></div> Signing in...</> : <><LogIn size={20} /> Sign In</>}
-          </button>
+          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</button>
         </form>
-
         <div className="auth-footer">
-          <p>Don't have an account? <Link to="/register" className="auth-link">Sign up here</Link></p>
+          <p>Don't have an account? <Link to="/register">Sign up</Link></p>
         </div>
-
-       
       </div>
     </div>
   );

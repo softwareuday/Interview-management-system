@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'https://interview-management-system-75aa.onrender.com/api'; 
+export const API_BASE_URL = 'https://your-backend.onrender.com/api'; // for production
 
 export const APPLICATION_STATUS = {
   APPLIED: 'APPLIED',
@@ -33,7 +33,6 @@ export const JOB_STATUS = {
   CLOSED: 'CLOSED'
 };
 
-// Display labels
 export const STATUS_LABELS = {
   [APPLICATION_STATUS.APPLIED]: 'Applied',
   [APPLICATION_STATUS.SHORTLISTED]: 'Shortlisted',
